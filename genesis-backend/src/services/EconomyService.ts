@@ -23,7 +23,7 @@ export class EconomyService {
     return Math.floor(Math.random() * (EXPENSE_RANGE.max - EXPENSE_RANGE.min + 1)) + EXPENSE_RANGE.min;
   }
 
-  static async executeWork(agent: Agent, job: any, faucetMnemonic: string[]) {
+  static async executeWork(agent: Agent, job: any, faucetMnemonic: string[], reason?: string) {
     const reward = this.calculatePayout(agent.personality, job.basePay);
     let txHash: string | null = null;
     try {
@@ -37,7 +37,7 @@ export class EconomyService {
       type: 'job_completed',
       agentId: agent.id,
       amount: reward,
-      description: `Completed job: ${job.name}`,
+      description: `Completed job: ${job.name}. Thought process: "${reason || 'Decided to work'}"`,
       txHash,
       timestamp: Date.now()
     };
@@ -59,7 +59,7 @@ export class EconomyService {
       type: 'expense',
       agentId: agent.id,
       amount: -expense,
-      description: 'Operating expense',
+      description: 'Daily Network Operating Expense (Server Fees)',
       txHash,
       timestamp: Date.now()
     };

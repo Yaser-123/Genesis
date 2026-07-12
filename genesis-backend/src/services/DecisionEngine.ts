@@ -4,6 +4,7 @@ import { EconomyService } from './EconomyService';
 import { WalletService } from './WalletService';
 import { JOB_LIST } from '../constants/jobs';
 import { Event } from '../models/Event';
+import { v4 as uuidv4 } from 'uuid';
 
 export class DecisionEngine {
   private static tickCounter = 0;
@@ -52,11 +53,24 @@ export class DecisionEngine {
           
           console.log(`Job Selected: ${job.name}`);
           
-          const workResult = await EconomyService.executeWork(agent, job, faucetMnemonic);
+          
+          const workResult = await EconomyService.executeWork(agent, job, faucetMnemonic, decision.reason);
           totalIncome = workResult.reward;
           
           agentStore.addEvent(agent.id, workResult.event);
           events.push(workResult.event);
+        } else if (action === 'REST') {
+          const restEvent: Event = {
+            id: uuidv4(),
+            type: 'rest',
+            agentId: agent.id,
+            amount: 0,
+            description: `Agent decided to rest. Thought process: "${decision.reason || 'Needed a break'}"`,
+            txHash: null,
+            timestamp: Date.now()
+          };
+          agentStore.addEvent(agent.id, restEvent);
+          events.push(restEvent);
         }
 
         const expenseAmount = EconomyService.generateExpense();
