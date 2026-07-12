@@ -5,7 +5,7 @@ import { Agent } from '../models/Agent';
 import { Event } from '../models/Event';
 
 // ── Persistence paths ────────────────────────────────────────────
-const DATA_DIR = path.resolve(__dirname, '../../data');
+const DATA_DIR    = path.join(process.cwd(), 'data');
 const AGENTS_FILE = path.join(DATA_DIR, 'agents.json');
 const EVENTS_FILE = path.join(DATA_DIR, 'events.json');
 const META_FILE   = path.join(DATA_DIR, 'meta.json');
