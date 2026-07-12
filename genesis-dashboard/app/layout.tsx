@@ -5,8 +5,8 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 
 export const metadata: Metadata = {
-  title: "AgentOS Dashboard",
-  description: "Real-time monitoring and analytics for the autonomous AI agent network.",
+  title: "Genesis Dashboard",
+  description: "Manage and monitor your AI agents",
 };
 
 export default function RootLayout({

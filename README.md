@@ -52,5 +52,5 @@ We are the builders bringing the Machine Economy to Cardano.
 
 - **T Mohamed Yaser**
   - Email: `1ammar.yaser@gmail.com`
-- **Saif urrahman**
+- **codevixards**
   - Email: `saifuurahman8671@gmail.com`

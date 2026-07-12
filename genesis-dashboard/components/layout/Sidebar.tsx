@@ -34,7 +34,7 @@ export function Sidebar() {
           <Bot className="h-5 w-5" />
         </div>
         <span className="text-sm font-semibold tracking-wide text-foreground">
-          AGENT<span className="text-primary font-bold">OS</span>
+          GENES<span className="text-primary font-bold">IS</span>
         </span>
       </div>
 
@@ -67,11 +67,11 @@ export function Sidebar() {
       <div className="border-t border-sidebar-border/50 p-4">
         <div className="flex items-center gap-3 rounded-xl border border-card-border bg-card-bg p-3 shadow-sm">
           <div className="relative h-9 w-9 rounded-full bg-zinc-800 flex items-center justify-center text-sm font-bold border border-zinc-700">
-            S
+            C
             <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-card-bg bg-success" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-medium text-foreground">Saif</span>
+            <span className="text-sm font-medium text-foreground">codevixards</span>
             <span className="text-xs text-text-muted">System Admin</span>
           </div>
         </div>
