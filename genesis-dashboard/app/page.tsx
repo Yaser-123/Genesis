@@ -3,387 +3,364 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
-import { fetchAgents } from '@/lib/api';
+import { fetchAgents, fetchEvents, fetchStats, fetchAutoTickStatus } from '@/lib/api';
 import { Agent } from '@/types/agent';
+import { formatDistanceToNow } from 'date-fns';
 import {
   Users,
-  CheckCircle2,
-  Workflow,
   TrendingUp,
   Calendar,
   Bell,
-  Search,
-  BarChart3,
   Zap,
-  ArrowRight,
-  Globe,
-  Database,
-  FileText,
   Loader2,
   Skull,
+  Activity,
+  Coins,
+  Briefcase,
+  CheckCircle2,
+  ExternalLink,
+  Play,
+  Pause,
+  RefreshCw,
 } from 'lucide-react';
+
+// ── Event icon helper ────────────────────────────────────────────
+function eventIcon(type: string) {
+  if (type === 'task_complete') return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />;
+  if (type === 'error') return <Skull className="w-3.5 h-3.5 text-red-400 shrink-0" />;
+  if (type === 'tick') return <Coins className="w-3.5 h-3.5 text-amber-400 shrink-0" />;
+  if (type === 'spawn') return <Users className="w-3.5 h-3.5 text-blue-400 shrink-0" />;
+  return <Activity className="w-3.5 h-3.5 text-zinc-400 shrink-0" />;
+}
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { data: agents, error, isLoading } = useSWR<Agent[]>('/api/agents', fetchAgents, {
-    refreshInterval: 3000,
-  });
 
+  // ── Data fetching ──────────────────────────────────────────────
+  const { data: agents, error, isLoading } = useSWR<Agent[]>('agents', fetchAgents, { refreshInterval: 4000 });
+  const { data: events } = useSWR<any[]>('events', fetchEvents, { refreshInterval: 4000 });
+  const { data: stats } = useSWR<any>('stats', fetchStats, { refreshInterval: 4000 });
+  const { data: autoStatus } = useSWR<any>('autoStatus', fetchAutoTickStatus, { refreshInterval: 5000 });
+
+  // ── Live clock (client-only) ───────────────────────────────────
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
-
   useEffect(() => {
-    const initialTick = window.setTimeout(() => setCurrentTime(new Date()), 0);
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => {
-      window.clearTimeout(initialTick);
-      clearInterval(timer);
-    };
+    const t = setTimeout(() => setCurrentTime(new Date()), 0);
+    const i = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => { clearTimeout(t); clearInterval(i); };
   }, []);
 
-  // Calculate stats safely
+  // ── Derived values ─────────────────────────────────────────────
   const safeAgents = agents || [];
-  const totalAgents = safeAgents.length;
-  const aliveAgents = safeAgents.filter((a) => a.isAlive).length;
-  const totalAda = safeAgents.reduce((sum, a) => sum + (a.adaBalance || 0), 0);
-  const successRate = totalAgents > 0 ? ((aliveAgents / totalAgents) * 100).toFixed(1) : '0.0';
+  const totalAgents = stats?.totalAgents ?? safeAgents.length;
+  const aliveAgents = stats?.aliveAgents ?? safeAgents.filter(a => a.isAlive).length;
+  const totalAda = stats?.totalADA ?? safeAgents.reduce((s, a) => s + (a.adaBalance || 0), 0);
+  const ticksRun = stats?.ticksRun ?? 0;
+  const totalJobs = stats?.totalJobs ?? 0;
+  const totalEarned = stats?.totalEarned ?? 0;
+  const survivalRate = totalAgents > 0 ? ((aliveAgents / totalAgents) * 100).toFixed(0) : '0';
+
+  const recentEvents = [...(events || [])].slice(0, 8);
+  const topAgents = [...safeAgents]
+    .filter(a => a.isAlive)
+    .sort((a, b) => b.adaBalance - a.adaBalance)
+    .slice(0, 5);
 
   const formattedDate = currentTime
-    ? currentTime.toLocaleDateString('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-      })
-    : 'Loading date';
-
+    ? currentTime.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : '—';
   const formattedTime = currentTime
-    ? currentTime.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-      })
-    : '--:-- --';
+    ? currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+    : '--:--:-- --';
 
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-sage/30">
+    <div className="min-h-screen bg-background text-foreground">
       <main className="relative z-10 container mx-auto px-6 py-8 max-w-[1400px]">
 
-        {/* ─── Welcome Header ─── */}
-        <header className="mb-10 flex items-start justify-between">
+        {/* ─── Header ─── */}
+        <header className="mb-8 flex items-start justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-foreground">
-              Welcome back, Saif{' '}
-              <span className="inline-block animate-[wave_1.5s_ease-in-out_infinite]">👋</span>
+              Genesis Network{' '}
+              <span className="text-primary text-lg font-normal">
+                {autoStatus?.running
+                  ? <span className="inline-flex items-center gap-1.5 text-emerald-400"><span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />Auto-Running</span>
+                  : <span className="inline-flex items-center gap-1.5 text-zinc-500"><span className="w-2 h-2 rounded-full bg-zinc-500 inline-block" />Paused</span>
+                }
+              </span>
             </h1>
             <p className="text-text-secondary mt-1 text-sm">
-              Here&apos;s what&apos;s happening with your agents today.
+              Live Cardano testnet simulation — {aliveAgents} agent{aliveAgents !== 1 ? 's' : ''} active across {ticksRun} ticks
             </p>
           </div>
 
-          <div className="flex items-center gap-4">
-            {/* Date & Time */}
-            <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-card-border bg-card-bg shadow-sm">
-              <div className="flex items-center gap-2 text-sm text-text-primary">
-                <Calendar className="w-4 h-4 text-text-secondary" />
-                <span>{formattedDate}</span>
-              </div>
-              <div className="w-px h-4 bg-card-border" />
-              <span className="text-sm text-text-primary font-mono">{formattedTime}</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-card-border bg-card-bg shadow-sm text-sm font-mono text-text-primary">
+              <Calendar className="w-4 h-4 text-text-secondary" />
+              <span className="hidden sm:inline">{formattedDate} •</span>
+              <span>{formattedTime}</span>
             </div>
-
-            {/* Notification Bell */}
-            <button className="relative p-2.5 rounded-xl border border-card-border bg-card-bg shadow-sm hover:border-card-border-hover transition-colors">
+            <button
+              onClick={() => router.push('/admin')}
+              className="relative p-2.5 rounded-xl border border-card-border bg-card-bg shadow-sm hover:border-primary/50 transition-colors"
+            >
               <Bell className="w-5 h-5 text-text-secondary" />
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-pine rounded-full border-2 border-white" />
+              {(events?.length ?? 0) > 0 && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full border-2 border-background" />
+              )}
             </button>
           </div>
         </header>
 
-        {/* ─── Stat Cards ─── */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
-          {/* Total Agents */}
+        {/* ─── Live Stat Cards (from /api/stats) ─── */}
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard
             icon={<Users className="w-5 h-5" />}
-            iconColor="text-text-secondary"
-            iconBg="bg-sage/20 border-sage/30"
-            value={isLoading ? '...' : totalAgents.toString()}
-            label="Total Agents"
-            subtitle="Active in system"
-          />
-
-          {/* Tasks Completed */}
-          <StatCard
-            icon={<CheckCircle2 className="w-5 h-5" />}
-            iconColor="text-text-secondary"
-            iconBg="bg-sage/20 border-sage/30"
-            value={isLoading ? '...' : totalAda.toLocaleString()}
-            label="Total ADA"
-            subtitle={
-              <span className="text-text-secondary text-xs">
-                +{aliveAgents * 100} from active
-              </span>
-            }
-          />
-
-          {/* Active Workflows */}
-          <StatCard
-            icon={<Workflow className="w-5 h-5" />}
-            iconColor="text-text-secondary"
-            iconBg="bg-sage/20 border-sage/30"
             value={isLoading ? '...' : aliveAgents.toString()}
-            label="Active Agents"
-            subtitle="Running now"
+            label="Live Agents"
+            sub={`${totalAgents} total spawned`}
+            accent="text-emerald-400"
+            pulse={aliveAgents > 0}
           />
-
-          {/* Success Rate */}
+          <StatCard
+            icon={<Coins className="w-5 h-5" />}
+            value={isLoading ? '...' : `${totalAda.toFixed(1)}`}
+            label="ADA in Network"
+            sub="testnet balance"
+            accent="text-cyan-400"
+          />
+          <StatCard
+            icon={<Briefcase className="w-5 h-5" />}
+            value={isLoading ? '...' : totalJobs.toString()}
+            label="Jobs Completed"
+            sub={`${totalEarned} ADA earned`}
+            accent="text-purple-400"
+          />
           <StatCard
             icon={<TrendingUp className="w-5 h-5" />}
-            iconColor="text-text-secondary"
-            iconBg="bg-sage/20 border-sage/30"
-            value={isLoading ? '...' : `${successRate}%`}
-            label="Success Rate"
-            subtitle="Alive vs total"
+            value={isLoading ? '...' : `${survivalRate}%`}
+            label="Survival Rate"
+            sub={`Tick ${ticksRun}`}
+            accent="text-amber-400"
           />
         </section>
 
-        {/* ─── Agent Orchestration Section ─── */}
-        <section className="mb-10 rounded-2xl border border-card-border bg-card-bg shadow-sm p-8 relative overflow-hidden">
-          {/* Background subtle pattern */}
-          <div className="absolute inset-0 opacity-30 pointer-events-none" style={{
-            backgroundImage: 'radial-gradient(circle, rgba(97, 135, 110, 0.1) 1px, transparent 1px)',
-            backgroundSize: '16px 16px',
-          }} />
+        {/* ─── Two-column: Live Events + Live Leaderboard ─── */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
 
-          {/* Header */}
-          <div className="relative z-10 flex items-center justify-between mb-10">
-            <h2 className="text-sm font-semibold tracking-[0.15em] uppercase text-text-secondary">
-              Agent Orchestration
-            </h2>
-            <button
-              onClick={() => router.push('/admin')}
-              className="px-4 py-2 rounded-lg border border-white/15 text-sm font-medium text-text-primary hover:border-card-border-hover hover:text-white transition-all"
-            >
-              View Orchestration
-            </button>
-          </div>
-
-          {/* Orchestration Diagram */}
-          <div className="relative z-10 flex flex-col items-center">
-            {/* Main Flow Row */}
-            <div className="flex items-center justify-center gap-0 w-full max-w-3xl">
-              {/* Input Node */}
-              <div className="flex flex-col items-center">
-                <div className="w-14 h-14 rounded-xl border border-sage/30 bg-sage/10 flex items-center justify-center animate-float">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-secondary">
-                    <rect x="2" y="3" width="20" height="14" rx="2" />
-                    <path d="M8 21h8" />
-                    <path d="M12 17v4" />
-                  </svg>
+          {/* Live Event Feed */}
+          <div className="rounded-2xl border border-card-border bg-card-bg shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-card-border/50">
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-primary" />
+                <span className="font-semibold text-sm text-foreground">Live Event Feed</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-emerald-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Syncing
+              </div>
+            </div>
+            <div className="divide-y divide-card-border/30 max-h-[320px] overflow-y-auto">
+              {recentEvents.length === 0 && (
+                <div className="py-10 text-center text-text-muted text-sm">
+                  No events yet — run a tick to see activity
                 </div>
-              </div>
-
-              {/* Connection line with dots */}
-              <div className="flex items-center mx-2">
-                <div className="w-8 h-px bg-gradient-to-r from-sage/20 to-sage/60" />
-                <div className="w-2 h-2 rounded-full bg-sage" />
-                <div className="w-4 h-px bg-sage/60" />
-              </div>
-
-              {/* Agent Orchestrator - Central Node */}
-              <div className="relative">
-                <div className="px-8 py-4 rounded-xl border border-pine/20 bg-pine/5 backdrop-blur-sm flex items-center gap-3">
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-pine/60" />
-                    <div className="w-1.5 h-1.5 rounded-full bg-pine/40" />
-                    <div className="w-2 h-2 rounded-full bg-pine/60" />
+              )}
+              {recentEvents.map(ev => (
+                <div key={ev.id} className="flex items-start gap-3 px-5 py-3 hover:bg-white/[0.02] transition-colors">
+                  <div className="mt-0.5">{eventIcon(ev.type)}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-text-secondary leading-relaxed line-clamp-2">{ev.message}</p>
+                    {ev.txHash && (
+                      <a
+                        href={`https://preprod.cardanoscan.io/transaction/${ev.txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[10px] text-primary/70 hover:text-primary mt-0.5"
+                      >
+                        <ExternalLink className="w-2.5 h-2.5" /> View on Cardanoscan
+                      </a>
+                    )}
                   </div>
-                  <span className="text-sm font-semibold text-pine tracking-wide">Agent Orchestrator</span>
+                  <span className="text-[10px] text-text-muted whitespace-nowrap shrink-0 mt-0.5">
+                    {formatDistanceToNow(new Date(ev.timestamp), { addSuffix: true })}
+                  </span>
                 </div>
-
-                {/* Dashed lines going down to sub-nodes */}
-                <div className="absolute left-1/2 -translate-x-1/2 top-full w-px h-8">
-                  <svg width="2" height="32" className="overflow-visible">
-                    <line x1="1" y1="0" x2="1" y2="32" stroke="var(--color-sage)" strokeWidth="1" strokeDasharray="4 4" />
-                  </svg>
-                </div>
-
-                {/* Branching connector */}
-                <div className="absolute left-1/2 -translate-x-1/2 top-[calc(100%+32px)]">
-                  <svg width="200" height="40" viewBox="-100 0 200 40" className="overflow-visible">
-                    {/* Center diamond */}
-                    <rect x="-5" y="-5" width="10" height="10" transform="rotate(45)" fill="var(--color-sage)" stroke="var(--color-forest)" strokeWidth="1" />
-                    {/* Left branch */}
-                    <line x1="0" y1="7" x2="-80" y2="35" stroke="var(--color-sage)" strokeWidth="1" strokeDasharray="4 4" />
-                    {/* Center branch */}
-                    <line x1="0" y1="7" x2="0" y2="35" stroke="var(--color-sage)" strokeWidth="1" strokeDasharray="4 4" />
-                    {/* Right branch */}
-                    <line x1="0" y1="7" x2="80" y2="35" stroke="var(--color-sage)" strokeWidth="1" strokeDasharray="4 4" />
-                  </svg>
-                </div>
-              </div>
-
-              {/* Connection line with dots */}
-              <div className="flex items-center mx-2">
-                <div className="w-4 h-px bg-sage/60" />
-                <div className="w-2.5 h-2.5 rotate-45 bg-sage/60 border border-white/15" />
-                <div className="w-4 h-px bg-sage/60" />
-              </div>
-
-              {/* AI Node */}
-              <div className="w-16 h-16 rounded-xl border border-pine/20 bg-pine/5 flex items-center justify-center animate-float-delay-1">
-                <span className="text-2xl font-black tracking-tighter" style={{ fontFamily: 'serif' }}>AI</span>
-              </div>
-            </div>
-
-            {/* Sub-nodes Row */}
-            <div className="flex items-center justify-center gap-12 mt-20">
-              <div className="flex flex-col items-center gap-2 animate-float">
-                <div className="w-12 h-12 rounded-full border border-sage/30 bg-sage/10 flex items-center justify-center">
-                  <Globe className="w-5 h-5 text-text-secondary" />
-                </div>
-                <span className="text-[10px] text-text-muted uppercase tracking-wider">Web</span>
-              </div>
-
-              <div className="flex flex-col items-center gap-2 animate-float-delay-1">
-                <div className="w-12 h-12 rounded-full border border-sage/30 bg-sage/10 flex items-center justify-center">
-                  <Database className="w-5 h-5 text-text-secondary" />
-                </div>
-                <span className="text-[10px] text-text-muted uppercase tracking-wider">Data</span>
-              </div>
-
-              <div className="flex flex-col items-center gap-2 animate-float-delay-2">
-                <div className="w-12 h-12 rounded-full border border-sage/30 bg-sage/10 flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-text-secondary" />
-                </div>
-                <span className="text-[10px] text-text-muted uppercase tracking-wider">Docs</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ─── Chat / Help Section ─── */}
-        <section className="rounded-2xl border border-card-border bg-card-bg shadow-sm p-8">
-          <h3 className="text-lg font-bold text-foreground mb-4">What can I help with?</h3>
-
-          <div className="flex items-center gap-3">
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                placeholder="Execute multi-agent workflows, coordinate tasks, and get intelligent results."
-                className="w-full px-5 py-3.5 rounded-xl border border-card-border bg-card-bg shadow-sm text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-white/20 focus:bg-white/[0.05] transition-all"
-              />
+              ))}
             </div>
           </div>
 
-          <div className="flex items-center justify-between mt-4">
-            <div className="flex items-center gap-2">
-              <PillButton icon={<Search className="w-3.5 h-3.5" />} label="Search" />
-              <PillButton icon={<BarChart3 className="w-3.5 h-3.5" />} label="Analyze" />
-              <PillButton icon={<Zap className="w-3.5 h-3.5" />} label="Automate" />
+          {/* Live Leaderboard */}
+          <div className="rounded-2xl border border-card-border bg-card-bg shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-card-border/50">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-amber-400" />
+                <span className="font-semibold text-sm text-foreground">Wealth Leaderboard</span>
+              </div>
+              <span className="text-xs text-text-muted">Live balances</span>
             </div>
-            <button className="w-10 h-10 rounded-xl border-transparent bg-pine flex items-center justify-center hover:bg-pine/90 transition-colors">
-              <ArrowRight className="w-4 h-4 text-text-secondary" />
-            </button>
+            <div className="divide-y divide-card-border/30">
+              {topAgents.length === 0 && (
+                <div className="py-10 text-center text-text-muted text-sm">
+                  No agents alive — spawn one from Orchestration
+                </div>
+              )}
+              {topAgents.map((agent, i) => (
+                <div
+                  key={agent.id}
+                  onClick={() => router.push(`/agents/${agent.id}`)}
+                  className="flex items-center gap-4 px-5 py-3.5 cursor-pointer hover:bg-white/[0.02] transition-colors"
+                >
+                  <span className={`text-base font-black w-6 text-center ${i === 0 ? 'text-amber-400' : i === 1 ? 'text-zinc-300' : i === 2 ? 'text-amber-700' : 'text-text-muted'}`}>
+                    {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-sm text-foreground truncate">{agent.name}</div>
+                    <div className="text-xs text-text-muted capitalize">{agent.personality}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold font-mono text-emerald-400 text-sm">{agent.adaBalance.toFixed(2)}</div>
+                    <div className="text-[10px] text-text-muted">ADA</div>
+                  </div>
+                  {/* Balance bar */}
+                  <div className="w-16 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, (agent.adaBalance / Math.max(...topAgents.map(a => a.adaBalance), 1)) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Auto-tick status panel */}
+            <div className={`mx-4 mb-4 mt-2 rounded-xl border p-3 flex items-center justify-between ${autoStatus?.running ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-card-border bg-card-bg'}`}>
+              <div>
+                <div className={`text-xs font-semibold ${autoStatus?.running ? 'text-emerald-400' : 'text-text-muted'}`}>
+                  {autoStatus?.running ? `⚡ Auto-ticking every ${autoStatus.intervalSeconds}s` : '⏸ Simulation paused'}
+                </div>
+                <div className="text-[10px] text-text-muted mt-0.5">{ticksRun} ticks completed</div>
+              </div>
+              <button
+                onClick={() => router.push('/admin')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${autoStatus?.running ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' : 'bg-card-bg border border-card-border text-text-secondary hover:text-foreground'}`}
+              >
+                {autoStatus?.running ? <><Pause className="w-3 h-3" /> Manage</> : <><Play className="w-3 h-3" /> Start</>}
+              </button>
+            </div>
           </div>
         </section>
 
         {/* ─── Error State ─── */}
         {error && (
-          <div className="mt-10 flex flex-col items-center justify-center py-16 gap-4 rounded-2xl border border-card-border bg-card-bg shadow-sm">
-            <div className="p-4 rounded-full border-sage/50 bg-sage/10">
-              <Skull className="w-8 h-8 text-text-secondary" />
-            </div>
-            <p className="text-text-primary font-medium text-lg">Connection Terminated</p>
-            <p className="text-sm text-text-muted">
-              Failed to fetch agent data. Verify the core backend is online on port 4000.
-            </p>
+          <div className="flex flex-col items-center justify-center py-16 gap-4 rounded-2xl border border-card-border bg-card-bg shadow-sm">
+            <Skull className="w-8 h-8 text-red-400" />
+            <p className="text-text-primary font-medium">Backend offline — start the server on port 4000</p>
           </div>
         )}
 
-        {/* ─── Agent Grid (below orchestration) ─── */}
-        {!error && !isLoading && safeAgents.length > 0 && (
-          <section className="mt-10">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-sm font-semibold tracking-[0.15em] uppercase text-text-secondary">
+        {/* ─── Active Agent Grid ─── */}
+        {!error && (
+          <section>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-sm font-semibold tracking-[0.15em] uppercase text-text-secondary flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                 Active Agents
               </h2>
-              <div className="flex items-center gap-2 text-xs text-text-secondary px-3 py-1.5 rounded-full border border-card-border bg-card-bg shadow-sm">
-                <div className="w-1.5 h-1.5 rounded-full bg-pine animate-pulse" />
-                Live Sync
-              </div>
+              <button
+                onClick={() => router.push('/agents')}
+                className="text-xs text-text-secondary hover:text-foreground transition-colors"
+              >
+                View all →
+              </button>
             </div>
 
+            {isLoading && (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="w-6 h-6 text-text-muted animate-spin" />
+              </div>
+            )}
+
+            {!isLoading && safeAgents.length === 0 && (
+              <div className="py-12 text-center text-text-muted text-sm rounded-2xl border border-dashed border-card-border">
+                No agents in the network — go to Orchestration to spawn one.
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {safeAgents.map((agent) => (
+              {safeAgents.map(agent => (
                 <div
                   key={agent.id}
                   onClick={() => router.push(`/agents/${agent.id}`)}
-                  className="group relative rounded-xl border border-card-border bg-card-bg shadow-sm p-5 cursor-pointer hover:border-card-border-hover transition-all"
+                  className={`group relative rounded-xl border bg-card-bg shadow-sm p-5 cursor-pointer transition-all hover:shadow-md ${
+                    agent.isAlive
+                      ? 'border-card-border hover:border-emerald-500/30 hover:shadow-emerald-500/5'
+                      : 'border-card-border opacity-60 hover:opacity-80'
+                  }`}
                 >
+                  {/* Status glow top bar */}
+                  <div className={`absolute top-0 left-4 right-4 h-[1px] rounded-full ${agent.isAlive ? 'bg-emerald-500/40' : 'bg-red-500/30'}`} />
+
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-foreground text-sm">{agent.name}</h3>
-                    <span className={`flex items-center gap-1.5 text-xs ${agent.isAlive ? 'text-text-secondary' : 'text-text-muted'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${agent.isAlive ? 'bg-pine/60' : 'bg-text-muted'}`} />
-                      {agent.isAlive ? 'Alive' : 'Dead'}
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${agent.isAlive ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
+                      <h3 className="font-semibold text-foreground text-sm">{agent.name}</h3>
+                    </div>
+                    {!agent.isAlive && <Skull className="w-3.5 h-3.5 text-red-400" />}
+                  </div>
+
+                  <p className="text-xs text-text-muted line-clamp-2 mb-4 leading-relaxed">{agent.goal}</p>
+
+                  <div className="flex items-center justify-between">
+                    <span className={`text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                      agent.personality === 'aggressive' ? 'text-red-400 border-red-500/20 bg-red-500/5'
+                        : agent.personality === 'creative' ? 'text-purple-400 border-purple-500/20 bg-purple-500/5'
+                        : 'text-emerald-400 border-emerald-500/20 bg-emerald-500/5'
+                    }`}>
+                      {agent.personality}
+                    </span>
+                    <span className="font-bold font-mono text-sm text-foreground">
+                      {agent.adaBalance.toFixed(2)} <span className="text-[10px] text-text-muted font-normal">ADA</span>
                     </span>
                   </div>
-                  <p className="text-xs text-text-muted line-clamp-1 mb-3">{agent.goal}</p>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-text-secondary">{agent.personality}</span>
-                    <span className="font-mono text-text-secondary">{agent.adaBalance.toLocaleString()} ADA</span>
+
+                  {/* Balance mini-bar */}
+                  <div className="mt-3 h-1 bg-zinc-800 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${agent.isAlive ? 'bg-emerald-500' : 'bg-red-500/50'}`}
+                      style={{ width: `${Math.min(100, Math.max(2, (agent.adaBalance / 30) * 100))}%` }}
+                    />
                   </div>
                 </div>
               ))}
             </div>
           </section>
         )}
-
-        {/* Loading State */}
-        {isLoading && (
-          <div className="mt-10 flex items-center justify-center py-16">
-            <Loader2 className="w-6 h-6 text-text-muted animate-spin" />
-          </div>
-        )}
       </main>
     </div>
   );
 }
 
-/* ─── Stat Card Component ─── */
+/* ── StatCard ─────────────────────────────────────────────────── */
 function StatCard({
-  icon,
-  iconColor,
-  iconBg,
-  value,
-  label,
-  subtitle,
+  icon, value, label, sub, accent, pulse,
 }: {
   icon: React.ReactNode;
-  iconColor: string;
-  iconBg: string;
   value: string;
   label: string;
-  subtitle: React.ReactNode;
+  sub: string;
+  accent: string;
+  pulse?: boolean;
 }) {
   return (
-    <div className="group rounded-xl border border-card-border bg-card-bg shadow-sm p-5 hover:border-card-border-hover transition-all">
-      <div className="flex items-center gap-3 mb-3">
-        <div className={`p-2.5 rounded-lg border ${iconBg} ${iconColor}`}>
-          {icon}
-        </div>
+    <div className="rounded-xl border border-card-border bg-card-bg shadow-sm p-5 hover:border-card-border-hover transition-all">
+      <div className={`flex items-center gap-2 mb-3 ${accent}`}>
+        {icon}
+        {pulse && <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />}
       </div>
-      <div className="text-3xl font-bold text-foreground font-mono tracking-tight mb-1">{value}</div>
+      <div className={`text-3xl font-bold font-mono tracking-tight mb-0.5 ${accent}`}>{value}</div>
       <div className="text-sm font-medium text-text-secondary">{label}</div>
-      <div className="text-xs text-text-muted mt-0.5">{typeof subtitle === 'string' ? subtitle : subtitle}</div>
+      <div className="text-xs text-text-muted mt-0.5">{sub}</div>
     </div>
-  );
-}
-
-/* ─── Pill Button Component ─── */
-function PillButton({ icon, label }: { icon: React.ReactNode; label: string }) {
-  return (
-    <button className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-card-border bg-card-bg shadow-sm text-xs text-text-secondary hover:border-card-border-hover hover:text-text-primary transition-all">
-      {icon}
-      {label}
-    </button>
   );
 }
