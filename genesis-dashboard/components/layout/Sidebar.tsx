@@ -9,13 +9,15 @@ import {
   Settings, 
   TerminalSquare, 
   Activity,
-  Bot
+  Bot,
+  Briefcase
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Agents', href: '/agents', icon: Users },
+  { name: 'Economy', href: '/economy', icon: Briefcase },
   { name: 'Orchestration', href: '/admin', icon: TerminalSquare },
   { name: 'Activity Log', href: '/activity', icon: Activity },
   { name: 'Settings', href: '/settings', icon: Settings },

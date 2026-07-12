@@ -23,6 +23,7 @@ import { formatDistanceToNow } from 'date-fns';
 
 import { Obituary } from '@/components/Obituary';
 import { Timeline } from '@/components/Timeline';
+import { BalanceChart } from '@/components/BalanceChart';
 
 export default function AgentDetailPage() {
   const params = useParams();
@@ -229,8 +230,38 @@ export default function AgentDetailPage() {
           </div>
         )}
 
+        {/* Balance Chart Section */}
+        <div className="mt-8 bg-zinc-900/40 backdrop-blur-md border border-zinc-800/80 p-6 sm:p-8 rounded-3xl">
+          <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">
+            <span className="text-emerald-400">📈</span>
+            Balance History
+          </h2>
+          <p className="text-zinc-500 text-sm mb-6">ADA balance tracked across every economic tick.</p>
+
+          {/* Economy stats row */}
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="bg-zinc-950/50 rounded-xl border border-zinc-800/50 p-4">
+              <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Total Earned</div>
+              <div className="text-xl font-bold text-emerald-400 font-mono">{(agent as any).totalEarned?.toFixed(2) || '0.00'} <span className="text-xs font-normal text-zinc-500">ADA</span></div>
+            </div>
+            <div className="bg-zinc-950/50 rounded-xl border border-zinc-800/50 p-4">
+              <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Total Spent</div>
+              <div className="text-xl font-bold text-red-400 font-mono">{(agent as any).totalSpent?.toFixed(2) || '0.00'} <span className="text-xs font-normal text-zinc-500">ADA</span></div>
+            </div>
+            <div className="bg-zinc-950/50 rounded-xl border border-zinc-800/50 p-4">
+              <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Jobs Completed</div>
+              <div className="text-xl font-bold text-cyan-400 font-mono">{(agent as any).jobsCompleted || 0}</div>
+            </div>
+          </div>
+
+          <BalanceChart
+            balanceHistory={(agent as any).balanceHistory || []}
+            currentBalance={agent.adaBalance}
+          />
+        </div>
+
         {/* Timeline Section */}
-        <div className="mt-12 bg-zinc-900/40 backdrop-blur-md border border-zinc-800/80 p-6 sm:p-8 rounded-3xl">
+        <div className="mt-8 bg-zinc-900/40 backdrop-blur-md border border-zinc-800/80 p-6 sm:p-8 rounded-3xl">
           <h2 className="text-2xl font-bold text-white mb-8 flex items-center gap-2">
             <Clock className="w-6 h-6 text-zinc-400" />
             Activity Timeline

@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { spawnAgent, runTick } from '@/lib/api';
+import React, { useState, useEffect } from 'react';
+import { spawnAgent, runTick, startAutoTick, stopAutoTick, fetchAutoTickStatus } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { Server, Plus, Zap, Activity, AlertTriangle, Terminal, Loader2 } from 'lucide-react';
+import { Server, Plus, Zap, Activity, AlertTriangle, Terminal, Loader2, RefreshCw } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
@@ -18,25 +18,42 @@ export default function AdminPage() {
   // Tick State
   const [isTicking, setIsTicking] = useState(false);
   const [isAutoRun, setIsAutoRun] = useState(false);
-  const autoRunIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [autoTickInfo, setAutoTickInfo] = useState<{ running: boolean; intervalSeconds: number; ticksRun: number } | null>(null);
+  const [isTogglingAuto, setIsTogglingAuto] = useState(false);
 
-  // Auto Run Effect
+  // Poll auto-tick status from backend every 5s
   useEffect(() => {
-    if (isAutoRun) {
-      handleRunTick();
-      autoRunIntervalRef.current = setInterval(() => {
-        handleRunTick();
-      }, 15000);
-    } else {
-      if (autoRunIntervalRef.current) {
-        clearInterval(autoRunIntervalRef.current);
-        autoRunIntervalRef.current = null;
-      }
-    }
-    return () => {
-      if (autoRunIntervalRef.current) clearInterval(autoRunIntervalRef.current);
+    const poll = async () => {
+      try {
+        const status = await fetchAutoTickStatus();
+        setAutoTickInfo(status);
+        setIsAutoRun(status.running);
+      } catch {}
     };
-  }, [isAutoRun]);
+    poll();
+    const interval = setInterval(poll, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleToggleAutoRun = async () => {
+    setIsTogglingAuto(true);
+    try {
+      if (isAutoRun) {
+        await stopAutoTick();
+        toast.success('Auto-tick stopped');
+      } else {
+        await startAutoTick(30);
+        toast.success('Auto-tick started — every 30s');
+      }
+      const status = await fetchAutoTickStatus();
+      setAutoTickInfo(status);
+      setIsAutoRun(status.running);
+    } catch {
+      toast.error('Failed to toggle auto-tick');
+    } finally {
+      setIsTogglingAuto(false);
+    }
+  };
 
   const handleSpawnAgent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,35 +228,42 @@ export default function AdminPage() {
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <div className="space-y-1">
                 <CardTitle className="flex items-center gap-2">
-                  <Activity className={cn("w-5 h-5", isAutoRun ? "text-success" : "text-text-muted")} />
+                  <Activity className={cn("w-5 h-5", isAutoRun ? "text-success animate-pulse" : "text-text-muted")} />
                   Auto Run
                 </CardTitle>
                 <CardDescription className={cn(isAutoRun && "text-success font-medium")}>
-                  {isAutoRun ? 'Active (15s Interval)' : 'Disabled'}
+                  {isAutoRun
+                    ? `🟢 Running every ${autoTickInfo?.intervalSeconds ?? 30}s — ${autoTickInfo?.ticksRun ?? 0} ticks total`
+                    : '⚫ Disabled — agents are paused'}
                 </CardDescription>
               </div>
 
               {/* Toggle Switch */}
               <button
-                onClick={() => setIsAutoRun(!isAutoRun)}
+                onClick={handleToggleAutoRun}
+                disabled={isTogglingAuto}
                 className={cn(
-                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-success focus:ring-offset-2 focus:ring-offset-background",
+                  "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-success focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50",
                   isAutoRun ? "bg-success" : "bg-sidebar-border"
                 )}
               >
-                <span
-                  className={cn(
-                    "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                    isAutoRun ? "translate-x-6" : "translate-x-1"
-                  )}
-                />
+                {isTogglingAuto ? (
+                  <RefreshCw className="w-3 h-3 absolute left-1/2 -translate-x-1/2 animate-spin text-white" />
+                ) : (
+                  <span
+                    className={cn(
+                      "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                      isAutoRun ? "translate-x-6" : "translate-x-1"
+                    )}
+                  />
+                )}
               </button>
             </CardHeader>
             <CardContent>
               <div className="p-3 bg-background rounded-lg border border-sidebar-border flex items-start gap-3 mt-4">
                 <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
                 <p className="text-xs text-text-secondary leading-relaxed">
-                  Enabling <strong className="text-foreground">Auto Run</strong> will execute a global tick every 15 seconds. Ensure backend capacity can handle sustained load.
+                  <strong className="text-foreground">Auto Run</strong> fires a real backend tick every 30 seconds — agents earn income, pay expenses, and can die, even without any browser interaction.
                 </p>
               </div>
             </CardContent>

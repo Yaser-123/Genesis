@@ -17,27 +17,41 @@ export class LLMService {
     const endpoint = 'https://integrate.api.nvidia.com/v1/chat/completions';
     const model = 'minimaxai/minimax-m3';
 
-    const systemPrompt = `You are an autonomous AI economic agent.
+    const systemPrompt = `You are an autonomous AI economic agent living on the Cardano blockchain.
 Always respond ONLY as valid JSON.
 Your JSON must strictly follow this structure:
 {
   "action": "WORK" | "REST",
   "job": "Name of the job if you decided to work, otherwise omit",
-  "reason": "String explaining why you made this decision"
+  "reason": "String explaining why you made this decision, referencing your personality, balance, and recent history"
 }`;
 
-    const availableJobsString = jobList.map(j => `- ${j.name} (Base Pay: ${j.basePay} ADA)`).join('\n');
+    const availableJobsString = jobList
+      .map(j => `- ${j.name} [${j.category}] (Base Pay: ${j.basePay} ADA, Risk: ${j.risk}) — ${j.description}`)
+      .join('\n');
+
+    // Pass last 3 events as context so the LLM can reason about history
+    const recentHistory = agent.history
+      .slice(-3)
+      .map(e => `  [${e.type}] ${e.description} (${e.amount >= 0 ? '+' : ''}${e.amount} ADA)`)
+      .join('\n') || '  No previous activity.';
 
     const prompt = `Agent Name: ${agent.name}
 Personality: ${agent.personality}
 Goal: ${agent.goal}
 Current Balance: ${agent.balance} ADA
+Total Earned: ${agent.totalEarned} ADA
+Jobs Completed: ${agent.jobsCompleted}
+
+Recent Activity (last 3 events):
+${recentHistory}
 
 Available Jobs:
 ${availableJobsString}
 
 Choose an action. Supported actions: WORK, REST.
-If your balance reaches zero, you will die permanently.`;
+If your balance reaches zero, you die permanently.
+Consider your personality: aggressive agents take high-risk high-pay jobs, conservative agents pick safe low-risk jobs, creative agents balance between them.`;
 
     const requestBody = {
       model: model,
@@ -46,7 +60,7 @@ If your balance reaches zero, you will die permanently.`;
         { role: 'user', content: prompt }
       ],
       temperature: 0.7,
-      max_tokens: 300,
+      max_tokens: 350,
       stream: false
     };
 
@@ -63,7 +77,7 @@ If your balance reaches zero, you will die permanently.`;
       });
 
       const endTime = Date.now();
-      console.log(`[LLMService] Response received at ${new Date(endTime).toISOString()} (Took ${endTime - startTime}ms)`);
+      console.log(`[LLMService] Response received (Took ${endTime - startTime}ms)`);
 
       const content = response.data.choices[0]?.message?.content;
       if (!content) {
@@ -71,7 +85,7 @@ If your balance reaches zero, you will die permanently.`;
       }
 
       let jsonString = content.trim();
-      
+
       if (jsonString.endsWith('```')) {
         jsonString = jsonString.slice(0, -3).trim();
       }
@@ -92,16 +106,14 @@ If your balance reaches zero, you will die permanently.`;
           reason: parsed.reason || ''
         };
       } catch (parseError: any) {
-        throw new Error(`Failed to parse JSON response from LLM. Raw content: ${content}. Error: ${parseError.message}`);
+        throw new Error(`Failed to parse JSON from LLM. Raw: ${content}. Error: ${parseError.message}`);
       }
 
     } catch (error: any) {
-      const endTime = Date.now();
-      console.log(`[LLMService] Request failed at ${new Date(endTime).toISOString()} (Took ${endTime - startTime}ms)`);
       if (error.response) {
-        throw new Error(`LLM API request failed with status ${error.response.status}: ${JSON.stringify(error.response.data)}`);
+        throw new Error(`LLM API failed with status ${error.response.status}: ${JSON.stringify(error.response.data)}`);
       }
-      throw new Error(`LLM API request failed: ${error.message}`);
+      throw new Error(`LLM API failed: ${error.message}`);
     }
   }
 }
