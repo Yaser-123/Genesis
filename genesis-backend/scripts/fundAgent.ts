@@ -10,15 +10,15 @@ async function main() {
 
     console.log('2. Wallet Address:', address);
 
-    console.log('3. Funding it with 20 ADA from Faucet...');
+    console.log('3. Funding it with 10 ADA from Faucet...');
     const faucetMnemonic = process.env.FAUCET_WALLET_MNEMONIC?.split(' ');
     
     if (!faucetMnemonic) {
       throw new Error('FAUCET_WALLET_MNEMONIC is not defined in .env');
     }
 
-    // Fund the new wallet with 20 ADA
-    const txHash = await WalletService.sendADA(faucetMnemonic, address, 20);
+    // Fund the new wallet with 10 ADA
+    const txHash = await WalletService.sendADA(faucetMnemonic, address, 10);
     console.log('4. Transaction Hash:', txHash);
 
     console.log('Waiting for transaction to be confirmed... (This may take a minute)');
