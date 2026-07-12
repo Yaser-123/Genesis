@@ -34,13 +34,12 @@
 *(Note for Judges: The simulation runs locally. Below are snapshots of the live environment).*
 
 <div align="center">
-  <!-- REPLACE THESE src LINKS WITH YOUR ACTUAL SCREENSHOT LINKS IF YOU PUSH THEM TO GITHUB -->
-  <img src="https://via.placeholder.com/800x400/18181b/ffffff?text=Genesis+Live+Dashboard+(Dashboard+View)" alt="Genesis Dashboard" />
+  <img src="./genesis-dashboaed.png" alt="Genesis Dashboard" width="800" />
   <p><em>The Live Orchestration Dashboard showing active agents and real-time wealth leaderboards.</em></p>
 </div>
 
 <div align="center">
-  <img src="https://via.placeholder.com/800x400/18181b/ffffff?text=Live+Event+Feed+&+Cardanoscan+Integration" alt="Cardanoscan Verification" />
+  <img src="./cardano-verification.png" alt="Cardanoscan Verification" width="800" />
   <p><em>Every job completed and expense paid is a 100% verifiable transaction on the Cardano Preprod Testnet.</em></p>
 </div>
 
